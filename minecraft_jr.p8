@@ -22,6 +22,14 @@ player={
 function draw_player()
 	spr(player.cur_spr,player.x,player.y)
 	if(player.menu_open) then end
+	
+	pos=get_tool_grid_pos()
+	tilex=pos.x
+	tiley=pos.y
+	
+	print(tiley, 10, 10, 1)
+	
+	rect(tilex*8,tiley*8,(tilex*8)+8,(tiley*8)+8,1)
 
 	draw_menu()
 end
@@ -46,7 +54,7 @@ function update_player()
 		end
 	
 		if(btn(4)) then
-		 punch(player.dir) 
+		 punch() 
 		end
 	
 	 if(btnp(5)) then toggle_menu() end
@@ -67,22 +75,30 @@ function toggle_menu()
 	end
 end
 
-function punch(dir)
-	ptilex=player.x/8
-	ptiley=player.y/8
+function get_tool_grid_pos()
+ ptilex=flr((player.x+4)/8)
+	ptiley=flr((player.y+4)/8)
 	
 	tilex=ptilex
 	tiley=ptiley
 	
-	if(dir=='left') then
+	if(player.dir=='left') then
 	 tilex=tilex-1
-	elseif(dir=='right') then
+	elseif(player.dir=='right') then
 		tilex=tilex+1
-	elseif(dir=='up') then
+	elseif(player.dir=='up') then
 		tiley=tiley-1
-	elseif(dir=='down') then
+	elseif(player.dir=='down') then
 		tiley=tiley+1
 	end
+	
+	return {x=tilex,y=tilex}
+end
+
+function punch()
+	pos=get_tool_grid_pos()
+	tilex=pos.x
+	tiley=pos.y
 	 
  tile=mget(tilex,tiley)
  
