@@ -16,16 +16,20 @@ player={
 	cur_spr=1,
 	x=1,
 	y=1,
-	menu_open=false,
+	inventory_open=false,
 	dir='left',
 	is_punching=false,
 	punching_counter=0,
-	punching_speed=10
+	punching_speed=10,
+	anim_counter=0,
+	anim_speed=20,
+	flip_spr=false,
+	moving=false,
 }
 
 function draw_player()
-	spr(player.cur_spr,player.x,player.y)
-	if(player.menu_open) then end
+	spr(player.cur_spr,player.x,player.y,1,1,player.flip_spr)
+	if(player.inventory_open) then end
 	
 	pos=get_tool_grid_pos()
 	tilex=pos.x
@@ -34,49 +38,75 @@ function draw_player()
  --rect(tilex*8,tiley*8,(tilex*8)+8,(tiley*8)+8,6)
  spr(5,tilex*8,tiley*8)
 
-	draw_menu()
+	draw_inventory()
 	draw_actionbar()
 end
 
 function update_player()
- if(not(player.menu_open)) then
+ if(not(actionbar.is_open)) then
 		if(btn(0)) then 
 			player.x=player.x-1
 			player.dir='left' 
+			player.flip_spr=true
+			player.moving=true
 		end
 		if(btn(1)) then 
 			player.x=player.x+1
-			player.dir='right' 
+			player.dir='right'
+			player.flip_spr=false
+			player.moving=true 
 		end
 		if(btn(2)) then 
 			player.y=player.y-1
 			player.dir='up' 
+			player.moving=true
 		end
 		if(btn(3)) then 
 			player.y=player.y+1
 			player.dir='down' 
+			player.moving=true
+		end
+		
+		if(not(btn(0) or btn(1) or btn(2) or btn(3))) then
+			player.moving=false
+			player.cur_spr=1
+		end
+		
+		if(player.moving) then
+			player.anim_counter=player.anim_counter+player.anim_speed
+			
+			if(player.anim_counter >= 100) then
+				player.anim_counter=0
+				
+				if(player.cur_spr==1) then
+					player.cur_spr=2
+				else
+					player.cur_spr=1
+				end
+			end
 		end
 	
 		if(btn(4)) then
 		 punch() 
 		end
 	
-	 if(btnp(5)) then toggle_menu() end
+	 if(btnp(5)) then toggle_inventory() end
+	
 	else
-		if(btnp(5)) then toggle_menu() end
+		if(btnp(5)) then toggle_inventory() end
 	end
 	
-	update_menu()
+	update_inventory()
 	update_actionbar()
 end
 
-function toggle_menu()
-	--player.menu_open=not(player.menu_open)
+function toggle_inventory()
+	--player.inventory_open=not(player.inventory_open)
 	
-	--if(player.menu_open) then
-	--	menu.is_opening=true
+	--if(player.inventory_open) then
+	--	inventory.is_opening=true
 	--else
-	--	menu.is_closing=true
+	--	inventory.is_closing=true
 	--end
 	
 	if(actionbar.is_open) then
@@ -122,9 +152,10 @@ function punch()
  end
 end
 -->8
-menu={
+inventory={
 	is_open=false,
 	is_opening=false,
+	is_closing=false,
 	x=10,
 	y=10,
 	height=0,
@@ -134,53 +165,53 @@ menu={
 	items={}
 }
 
-function draw_menu()
- x=player.x-60+menu.x
- y=player.y-60+menu.y
+function draw_inventory()
+ x=player.x-60+inventory.x
+ y=player.y-60+inventory.y
  
-	if(menu.is_opening or menu.is_closing) then
-	 rectfill(x,y,x+menu.width,y+menu.height,1)
-	elseif(menu.is_open) then
-	 rectfill(x,y,x+menu.width,y+menu.height,1)
-		rect(x+1,y+1,x+menu.width-1,y+menu.height-1,7)
+	if(inventory.is_opening or inventory.is_closing) then
+	 rectfill(x,y,x+inventory.width,y+inventory.height,1)
+	elseif(inventory.is_open) then
+	 rectfill(x,y,x+inventory.width,y+inventory.height,1)
+		rect(x+1,y+1,x+inventory.width-1,y+inventory.height-1,7)
 		print('items',x+3,y+3)
-	 line(x+1,y+9,x+menu.width-1,y+9,7)
+	 line(x+1,y+9,x+inventory.width-1,y+9,7)
 	
 		i=0
-		for k,v in pairs(menu.items) do
+		for k,v in pairs(inventory.items) do
 			print(k,x+3,y+12+(7*i))
-			print(v.amount,x+menu.width-13,y+12+(7*i))
+			print(v.amount,x+inventory.width-13,y+12+(7*i))
 			
 			i=i+1
 		end
 	end
 end
 
-function update_menu()
- if(not(menu.is_open) and menu.is_opening) then
- 	if(menu.height<menu.max_height) then
- 	 menu.height=menu.height+menu.open_speed
+function update_inventory()
+ if(not(inventory.is_open) and inventory.is_opening) then
+ 	if(inventory.height<inventory.max_height) then
+ 	 inventory.height=inventory.height+inventory.open_speed
  	else
- 		menu.is_open=true
- 		menu.is_opening=false
+ 		inventory.is_open=true
+ 		inventory.is_opening=false
  	end
- elseif(menu.is_open and menu.is_closing) then
- 	if(menu.height>0) then
- 		menu.height=menu.height-menu.open_speed
+ elseif(inventory.is_open and inventory.is_closing) then
+ 	if(inventory.height>0) then
+ 		inventory.height=inventory.height-inventory.open_speed
  	else
- 		menu.is_open=false
- 		menu.is_closing=false
+ 		inventory.is_open=false
+ 		inventory.is_closing=false
  	end
  end
 end
 
 function add_item_to_inv(name,amount)
-	item=menu.items[name]
+	item=inventory.items[name]
 	
 	if(item) then
 		item.amount=item.amount+amount
 	else
-		menu.items[name]={
+		inventory.items[name]={
 		 amount=amount
 		}
 	end
@@ -254,17 +285,25 @@ function update_actionbar()
 	 	 actionbar.crsr_pos=actionbar.crsr_pos-1
 	 	end
 	 end
+	 
+	 if(btnp(4)) then
+	 	if(inventory.is_open) then
+	 		inventory.is_closing=true
+	 	else
+	 		inventory.is_opening=true
+	 	end
+	 end
 	end
 end
 
 __gfx__
-00000000000000000000000000000000000000007770077700010000000100000000000000000000000000000000000000000000000000000000000000000000
-000000000111111000000000000000000000000071100117001b1000001810000000000000000000000000000000000000000000000000000000000000000000
-007007000144441000000000000000000000000071000017001bb100001881000000000000000000000000000000000000000000000000000000000000000000
-0007700001f5f51000000000000000000000000010000001001bbb10001888100000000000000000000000000000000000000000000000000000000000000000
-0007700001fddd1000000000000000000000000070000007001bbb10001888100000000000000000000000000000000000000000000000000000000000000000
-007007000118811000000000000000000000000070000007001bb100001881000000000000000000000000000000000000000000000000000000000000000000
-00000000001cc10000000000000000000000000077700777001b1000001810000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000111111000000000000000007770077700010000000100000000000000000000000000000000000000000000000000000000000000000000
+000000000111111001444410000000000000000071100117001b1000001810000000000000000000000000000000000000000000000000000000000000000000
+007007000144441001f5f510000000000000000071000017001bb100001881000000000000000000000000000000000000000000000000000000000000000000
+0007700001f5f51001fddd10000000000000000010000001001bbb10001888100000000000000000000000000000000000000000000000000000000000000000
+0007700001fddd1001188110000000000000000070000007001bbb10001888100000000000000000000000000000000000000000000000000000000000000000
+0070070001188110001cc100000000000000000070000007001bb100001881000000000000000000000000000000000000000000000000000000000000000000
+00000000001cc10000111100000000000000000077700777001b1000001810000000000000000000000000000000000000000000000000000000000000000000
 00000000001111000000000000000000000000001110011100010000000100000000000000000000000000000000000000000000000000000000000000000000
 11111111111111111111111155555555444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 18788881144444411666566156666665499999940000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
