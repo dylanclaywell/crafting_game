@@ -10,6 +10,7 @@ function _draw()
 	camera(player.x-60,player.y-60)
 	map(0,0,0,0,16,16)
 	draw_player()
+	draw_tracked_objs()
 end
 -->8
 player={
@@ -86,7 +87,7 @@ function update_player()
 			end
 		end
 	
-		if(btn(4)) then
+		if(btnp(4)) then
 		 punch() 
 		end
 	
@@ -101,14 +102,6 @@ function update_player()
 end
 
 function toggle_inventory()
-	--player.inventory_open=not(player.inventory_open)
-	
-	--if(player.inventory_open) then
-	--	inventory.is_opening=true
-	--else
-	--	inventory.is_closing=true
-	--end
-	
 	if(actionbar.is_open) then
 		actionbar.is_closing=true
 	else
@@ -143,12 +136,12 @@ function punch()
 	 
  tile=mget(tilex,tiley)
  
- if(tile and tile==tiledefs.tree) then
- 	add_item_to_inv('wood',1)
- 	mset(tilex,tiley,0)
- elseif(tile and tile==tiledefs.stone) then
- 	add_item_to_inv('stone',1)
- 	mset(tilex,tiley,0)
+ if(tile!=0) then
+ 	tiledef=tiledefs[tile]
+ 	
+ 	if(not tiledef) then return end
+ 
+ 	punch_obj(tilex*8,tiley*8,tiledef)
  end
 end
 -->8
@@ -218,8 +211,18 @@ function add_item_to_inv(name,amount)
 end
 -->8
 tiledefs={
-	tree=32,
-	stone=33
+	[32]={
+		name='tree',
+		drop='wood',
+		durability=5,
+		tile=32
+	},
+	[33]={
+		name='stone',
+		drop='stone',
+		durability=5,
+		tile=33
+	}
 }
 -->8
 actionbar={
@@ -296,6 +299,71 @@ function update_actionbar()
 	end
 end
 
+-->8
+tracked_objs={
+
+}
+
+function draw_tracked_objs()
+	for o in all(tracked_objs) do
+		rectfill(o.x-2,o.y-1,o.x+9,o.y+2,1)
+		
+		hwidth=-2+(9*(o.health/o.durability))
+		
+		rectfill(o.x-1,o.y,o.x+hwidth,o.y+1,8)
+	end
+end
+
+function find_obj(x,y)
+	obj=nil
+	
+	for o in all(tracked_objs) do
+		if(o.x==x and o.y==y) then
+			obj=o
+		end
+	end
+	
+	return obj
+end
+
+function track_obj(x,y,durability,drop)
+	newobj={
+		x=x,
+		y=y,
+		durability=durability,
+		health=durability,
+		drop=drop
+	}
+	
+	add(tracked_objs,newobj)
+	
+	return newobj 
+end
+
+function untrack_obj(x,y)
+	obj=find_obj(x,y)
+	
+	if(not obj) then return end
+	
+	del(tracked_objs,obj)
+end
+
+function punch_obj(x,y,tiledef)
+ obj=find_obj(x,y)
+ 
+ if(obj) then
+ 	obj.health=obj.health-1
+ else
+ 	obj=track_obj(x,y,tiledef.durability,tiledef.drop)
+ 	obj.health=obj.health-1
+ end
+ 
+	if(obj.health<=0) then
+		add_item_to_inv(tiledef.name,1)
+		mset(tilex,tiley,0)
+		untrack_obj(x,y)
+	end
+end
 __gfx__
 00000000000000000111111000000000000000007770077700010000000100000000000000000000000000000000000000000000000000000000000000000000
 000000000111111001444410000000000000000071100117001b1000001810000000000000000000000000000000000000000000000000000000000000000000
