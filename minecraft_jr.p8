@@ -11,6 +11,7 @@ function _draw()
 	map(0,0,0,0,16,16)
 	draw_player()
 	draw_tracked_objs()
+	draw_equipment()
 end
 -->8
 player={
@@ -45,30 +46,42 @@ end
 
 function update_player()
  if(not(actionbar.is_open)) then
-		if(btn(0)) then 
+		local sx=player.x
+		local sy=player.y
+		
+		if(btn(⬅️)) then 
 			player.x=player.x-1
 			player.dir='left' 
 			player.flip_spr=true
 			player.moving=true
 		end
-		if(btn(1)) then 
+		if(btn(➡️)) then 
 			player.x=player.x+1
 			player.dir='right'
 			player.flip_spr=false
 			player.moving=true 
 		end
-		if(btn(2)) then 
+		
+		if(mcollide(player)) then
+			player.x=sx
+		end
+		
+		if(btn(⬆️)) then 
 			player.y=player.y-1
 			player.dir='up' 
 			player.moving=true
 		end
-		if(btn(3)) then 
+		if(btn(⬇️)) then 
 			player.y=player.y+1
 			player.dir='down' 
 			player.moving=true
 		end
 		
-		if(not(btn(0) or btn(1) or btn(2) or btn(3))) then
+		if(mcollide(player)) then
+			player.y=sy
+		end
+		
+		if(not(btn(⬆️) or btn(⬇️) or btn(⬅️) or btn(➡️))) then
 			player.moving=false
 			player.cur_spr=1
 		end
@@ -87,25 +100,29 @@ function update_player()
 			end
 		end
 	
-		if(btnp(4)) then
+		if(btnp(🅾️)) then
 		 punch() 
 		end
 	
-	 if(btnp(5)) then toggle_inventory() end
+		
+	 if(btnp(❎)) then toggle_actionbar() end
 	
 	else
-		if(btnp(5)) then toggle_inventory() end
+		if(btnp(❎)) then toggle_actionbar() end
 	end
 	
 	update_inventory()
 	update_actionbar()
 end
 
-function toggle_inventory()
-	if(actionbar.is_open) then
-		actionbar.is_closing=true
-	else
-		actionbar.is_opening=true
+function toggle_actionbar()
+	if(not inventory.is_open) then
+		if(actionbar.is_open) then
+			actionbar.is_closing=true
+		else
+			actionbar.crsr_pos=1
+			actionbar.is_opening=true
+		end
 	end
 end
 
@@ -152,10 +169,11 @@ inventory={
 	x=10,
 	y=10,
 	height=0,
-	max_height=40,
+	max_height=84,
 	width=50,
-	open_speed=10,
-	items={}
+	open_speed=30,
+	items={},
+	crsr_pos=1,
 }
 
 function draw_inventory()
@@ -172,28 +190,64 @@ function draw_inventory()
 	
 		i=0
 		for k,v in pairs(inventory.items) do
-			print(k,x+3,y+12+(7*i))
+			print(k,x+8,y+12+(7*i))
 			print(v.amount,x+inventory.width-13,y+12+(7*i))
 			
 			i=i+1
 		end
+		
+		for j=i,9 do
+			print('--',x+8,y+12+(7*j))
+		end
+		
+		spr(8,x,y+11+(7*(inventory.crsr_pos-1)))
 	end
 end
 
 function update_inventory()
  if(not(inventory.is_open) and inventory.is_opening) then
  	if(inventory.height<inventory.max_height) then
- 	 inventory.height=inventory.height+inventory.open_speed
+ 	 amt=inventory.open_speed
+ 	 
+ 	 if(inventory.height+inventory.open_speed>inventory.max_height) then
+ 	 	amt=inventory.max_height-inventory.height
+ 	 end
+ 	 
+ 	 inventory.height=inventory.height+amt
  	else
  		inventory.is_open=true
  		inventory.is_opening=false
  	end
  elseif(inventory.is_open and inventory.is_closing) then
  	if(inventory.height>0) then
- 		inventory.height=inventory.height-inventory.open_speed
+ 		amt=inventory.open_speed
+ 		
+ 		if(inventory.height-amt<0) then
+ 			amt=inventory.height
+ 		end
+ 		
+ 		inventory.height=inventory.height-amt
  	else
  		inventory.is_open=false
  		inventory.is_closing=false
+ 	end
+ end
+ 
+ if(inventory.is_open) then
+ 	if(btnp(⬇️)) then
+	  if(inventory.crsr_pos<10) then
+	 	 inventory.crsr_pos=inventory.crsr_pos+1
+	 	end
+ 	end
+ 
+	 if(btnp(⬆️)) then
+	  if(inventory.crsr_pos>1) then
+	 	 inventory.crsr_pos=inventory.crsr_pos-1
+	 	end
+	 end
+ 
+ 	if(btnp(❎)) then
+ 		inventory.is_closing=true
  	end
  end
 end
@@ -237,8 +291,8 @@ actionbar={
 
 function draw_actionbar()  
  draw_action('items',0,0,30,10,1)
- draw_action('build',0,12,30,10,2)
- draw_action('cook',0,24,30,10,3)
+ draw_action('craft',0,12,30,10,2)
+ draw_action('build',0,24,30,10,3)
 end
 
 function draw_action(text,x,y,w,h,idx)
@@ -276,25 +330,22 @@ function update_actionbar()
 		actionbar.is_open=false
 	end
 
-	if (actionbar.is_open) then
-	 if(btnp(3)) then
+	if (actionbar.is_open and not inventory.is_open) then
+	 if(btnp(⬇️)) then
 	  if(actionbar.crsr_pos<3) then
 	 	 actionbar.crsr_pos=actionbar.crsr_pos+1
 	 	end
  	end
  
-	 if(btnp(2)) then
+	 if(btnp(⬆️)) then
 	  if(actionbar.crsr_pos>1) then
 	 	 actionbar.crsr_pos=actionbar.crsr_pos-1
 	 	end
 	 end
 	 
-	 if(btnp(4)) then
-	 	if(inventory.is_open) then
-	 		inventory.is_closing=true
-	 	else
-	 		inventory.is_opening=true
-	 	end
+	 if(btnp(🅾️) and actionbar.crsr_pos==1) then
+			inventory.crsr_pos=1
+			inventory.is_opening=true
 	 end
 	end
 end
@@ -364,15 +415,42 @@ function punch_obj(x,y,tiledef)
 		untrack_obj(x,y)
 	end
 end
+-->8
+function mcollide(obj)	
+	local x1=obj.x/8
+ local y1=obj.y/8
+ local x2=(obj.x+7)/8
+ local y2=(obj.y+7)/8
+ 
+ local a=fget(mget(x1,y1),0)
+ local b=fget(mget(x1,y2),0)
+ local c=fget(mget(x2,y1),0)
+ local d=fget(mget(x2,y2),0)
+  
+ return a or b or c or d
+end
+-->8
+equipment={
+	x=4,
+	y=120-21,
+}
+
+function draw_equipment()
+	local x=player.x-60+equipment.x
+	local y=player.y-60+equipment.y
+	
+	rectfill(x,y,x+24,y+24,1)
+	rect(x+1,y+1,x+23,y+23,7)
+end
 __gfx__
-00000000000000000111111000000000000000007770077700010000000100000000000000000000000000000000000000000000000000000000000000000000
-000000000111111001444410000000000000000071100117001b1000001810000000000000000000000000000000000000000000000000000000000000000000
-007007000144441001f5f510000000000000000071000017001bb100001881000000000000000000000000000000000000000000000000000000000000000000
-0007700001f5f51001fddd10000000000000000010000001001bbb10001888100000000000000000000000000000000000000000000000000000000000000000
-0007700001fddd1001188110000000000000000070000007001bbb10001888100000000000000000000000000000000000000000000000000000000000000000
-0070070001188110001cc100000000000000000070000007001bb100001881000000000000000000000000000000000000000000000000000000000000000000
-00000000001cc10000111100000000000000000077700777001b1000001810000000000000000000000000000000000000000000000000000000000000000000
-00000000001111000000000000000000000000001110011100010000000100000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000111111000000000000000007770077700000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000111111001444410000000000000000071100117000b0000000800000007000000000000000000000000000000000000000000000000000000000000
+007007000144441001f5f510000000000000000071000017000bb000000880000007700000000000000000000000000000000000000000000000000000000000
+0007700001f5f51001fddd10000000000000000010000001000bbb00000888000007770000000000000000000000000000000000000000000000000000000000
+0007700001fddd1001188110000000000000000070000007000bbb00000888000007770000000000000000000000000000000000000000000000000000000000
+0070070001188110001cc100000000000000000070000007000bb000000880000007700000000000000000000000000000000000000000000000000000000000
+00000000001cc10000111100000000000000000077700777000b0000000800000007000000000000000000000000000000000000000000000000000000000000
+00000000001111000000000000000000000000001110011100000000000000000000000000000000000000000000000000000000000000000000000000000000
 11111111111111111111111155555555444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 18788881144444411666566156666665499999940000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 17777771114411111666566156666665499999940000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -397,6 +475,9 @@ __gfx__
 00111100000141000014441000014100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000141000011411000014100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000111000001110000011100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+__gff__
+0000000000000000000000000000000001010100000000000000000000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000210000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
