@@ -40,7 +40,8 @@ function draw_player()
  --rect(tilex*8,tiley*8,(tilex*8)+8,(tiley*8)+8,6)
  spr(5,tilex*8,tiley*8)
 
-	draw_inventory()
+	draw_submenu(inventory)
+	draw_submenu(craft_menu)
 	draw_actionbar()
 end
 
@@ -106,12 +107,10 @@ function update_player()
 	
 		
 	 if(btnp(❎)) then toggle_actionbar() end
-	
-	else
-		if(btnp(❎)) then toggle_actionbar() end
 	end
 	
-	update_inventory()
+	update_submenu(inventory)
+	update_submenu(craft_menu)
 	update_actionbar()
 end
 
@@ -163,6 +162,7 @@ function punch()
 end
 -->8
 inventory={
+	name='items',
 	is_open=false,
 	is_opening=false,
 	is_closing=false,
@@ -173,81 +173,105 @@ inventory={
 	width=50,
 	open_speed=30,
 	items={},
+	draw_items=function (m)
+													local x,y = unpack(get_offset_pos(m.x,m.y))
+													local i=0
+													for k,v in pairs(m.items) do
+														print(k,x+8,y+12+(7*i))
+														print(v.amount,x+m.width-13,y+12+(7*i))
+														
+														i=i+1
+													end
+													
+													for j=i,9 do
+														print('--',x+8,y+12+(7*j))
+													end
+												end,
 	crsr_pos=1,
 }
 
-function draw_inventory()
- x=player.x-60+inventory.x
- y=player.y-60+inventory.y
+craft_menu={
+	name='craft',
+	is_open=false,
+	is_opening=false,
+	is_closing=false,
+	x=10,
+	y=10,
+	height=0,
+	max_height=90,
+	width=50,
+	open_speed=30,
+	items={},
+	crsr_pos=1,
+	draw_items=function(m)
+												end
+}
+
+function get_offset_pos(x,y)
+	return {player.x-60+x,player.y-60+y}
+end
+
+function draw_submenu(menu)
+ local x,y=unpack(get_offset_pos(menu.x,menu.y))
  
-	if(inventory.is_opening or inventory.is_closing) then
-	 rectfill(x,y,x+inventory.width,y+inventory.height,1)
-	elseif(inventory.is_open) then
-	 rectfill(x,y,x+inventory.width,y+inventory.height,1)
-		rect(x+1,y+1,x+inventory.width-1,y+inventory.height-1,7)
-		print('items',x+3,y+3)
-	 line(x+1,y+9,x+inventory.width-1,y+9,7)
+	if(menu.is_opening or menu.is_closing) then
+	 rectfill(x,y,x+menu.width,y+menu.height,1)
+	elseif(menu.is_open) then
+	 rectfill(x,y,x+menu.width,y+menu.height,1)
+		rect(x+1,y+1,x+menu.width-1,y+menu.height-1,7)
+		print(menu.name,x+3,y+3)
+	 line(x+1,y+9,x+menu.width-1,y+9,7)
 	
-		i=0
-		for k,v in pairs(inventory.items) do
-			print(k,x+8,y+12+(7*i))
-			print(v.amount,x+inventory.width-13,y+12+(7*i))
-			
-			i=i+1
-		end
+		menu.draw_items(menu)
 		
-		for j=i,9 do
-			print('--',x+8,y+12+(7*j))
-		end
-		
-		spr(8,x,y+11+(7*(inventory.crsr_pos-1)))
+		spr(8,x,y+11+(7*(menu.crsr_pos-1)))
 	end
 end
 
-function update_inventory()
- if(not(inventory.is_open) and inventory.is_opening) then
- 	if(inventory.height<inventory.max_height) then
- 	 amt=inventory.open_speed
+function update_submenu(menu)
+	if(not(menu.is_open) and menu.is_opening) then
+ 	if(menu.height<menu.max_height) then
+ 	 local amt=inventory.open_speed
  	 
- 	 if(inventory.height+inventory.open_speed>inventory.max_height) then
- 	 	amt=inventory.max_height-inventory.height
+ 	 if(menu.height+menu.open_speed>menu.max_height) then
+ 	 	amt=menu.max_height-inventory.height
  	 end
  	 
- 	 inventory.height=inventory.height+amt
+ 	 menu.height=menu.height+amt
  	else
- 		inventory.is_open=true
- 		inventory.is_opening=false
+ 		menu.is_open=true
+ 		menu.is_opening=false
  	end
- elseif(inventory.is_open and inventory.is_closing) then
- 	if(inventory.height>0) then
- 		amt=inventory.open_speed
+ elseif(menu.is_open and menu.is_closing) then
+ 	if(menu.height>0) then
+ 		local amt=menu.open_speed
  		
- 		if(inventory.height-amt<0) then
- 			amt=inventory.height
+ 		if(menu.height-amt<0) then
+ 			amt=menu.height
  		end
  		
- 		inventory.height=inventory.height-amt
+ 		menu.height=menu.height-amt
  	else
- 		inventory.is_open=false
- 		inventory.is_closing=false
+ 		menu.is_open=false
+ 		menu.is_closing=false
  	end
  end
  
- if(inventory.is_open) then
+ if(menu.is_open) then
  	if(btnp(⬇️)) then
-	  if(inventory.crsr_pos<10) then
-	 	 inventory.crsr_pos=inventory.crsr_pos+1
+	  if(menu.crsr_pos<10) then
+	 	 menu.crsr_pos=menu.crsr_pos+1
 	 	end
  	end
  
 	 if(btnp(⬆️)) then
-	  if(inventory.crsr_pos>1) then
-	 	 inventory.crsr_pos=inventory.crsr_pos-1
+	  if(menu.crsr_pos>1) then
+	 	 menu.crsr_pos=menu.crsr_pos-1
 	 	end
 	 end
  
  	if(btnp(❎)) then
- 		inventory.is_closing=true
+ 		menu.is_closing=true
  	end
  end
 end
@@ -315,6 +339,10 @@ end
 function update_actionbar()
  actionbar.x=player.x+actionbar.offset
  actionbar.y=player.y-55
+
+	local submenu_is_open=
+		inventory.is_open or
+		craft_menu.is_open	
  
  if actionbar.is_opening and actionbar.offset>45 then
 		actionbar.offset=actionbar.offset-8
@@ -330,7 +358,7 @@ function update_actionbar()
 		actionbar.is_open=false
 	end
 
-	if (actionbar.is_open and not inventory.is_open) then
+	if (actionbar.is_open and not submenu_is_open) then
 	 if(btnp(⬇️)) then
 	  if(actionbar.crsr_pos<3) then
 	 	 actionbar.crsr_pos=actionbar.crsr_pos+1
@@ -343,9 +371,18 @@ function update_actionbar()
 	 	end
 	 end
 	 
-	 if(btnp(🅾️) and actionbar.crsr_pos==1) then
-			inventory.crsr_pos=1
-			inventory.is_opening=true
+	 if(btnp(🅾️)) then
+	 	if actionbar.crsr_pos==1 then
+				inventory.crsr_pos=1
+				inventory.is_opening=true
+			elseif actionbar.crsr_pos==2 then
+				craft_menu.crsr_pos=1
+				craft_menu.is_opening=true
+			end
+	 end
+	 
+	 if(btnp(❎)) then
+	 	actionbar.is_closing=true
 	 end
 	end
 end
@@ -410,7 +447,7 @@ function punch_obj(x,y,tiledef)
  end
  
 	if(obj.health<=0) then
-		add_item_to_inv(tiledef.name,1)
+		add_item_to_inv(tiledef.drop,1)
 		mset(tilex,tiley,0)
 		untrack_obj(x,y)
 	end
