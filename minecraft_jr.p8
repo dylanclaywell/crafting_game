@@ -1,6 +1,10 @@
 pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
+function _init()
+	add_recipes()
+end
+
 function _update()
 	update_player()
 end
@@ -172,22 +176,30 @@ inventory={
 	max_height=84,
 	width=50,
 	open_speed=30,
+	max_items=10,
 	items={},
 	draw_items=function (m)
 													local x,y = unpack(get_offset_pos(m.x,m.y))
-													local i=0
-													for k,v in pairs(m.items) do
-														print(k,x+8,y+12+(7*i))
-														print(v.amount,x+m.width-13,y+12+(7*i))
-														
-														i=i+1
-													end
+													local scrolly=y-(m.crsr_pos-1)*7
 													
-													for j=i,9 do
-														print('--',x+8,y+12+(7*j))
+													local items=m.items
+													
+													for i=1,m.max_items do
+													 local yy=scrolly+12+(7*(i-1))
+													 local item=items[i]
+													 
+													 if(yy>y+11) then
+													 	if item then
+													  	print(item.name,x+8,yy)
+																print(item.amount,x+m.width-13,yy)
+													 	else
+													 	 print('--',x+8,yy)
+													 	end															
+														end
 													end
 												end,
 	crsr_pos=1,
+	item_action=function (m) end,
 }
 
 craft_menu={
@@ -201,11 +213,88 @@ craft_menu={
 	max_height=90,
 	width=50,
 	open_speed=30,
+	max_items=30,
 	items={},
 	crsr_pos=1,
-	draw_items=function(m)
-												end
+	draw_items=function (m)
+													local x,y = unpack(get_offset_pos(m.x,m.y))
+													local scrolly=y-(m.crsr_pos-1)*7
+													
+												
+													for i=1,m.max_items do
+													 local yy=scrolly+12+(7*(i-1))
+													 local item=m.items[i]
+													 
+													 if(yy>y+11) then
+													 	if item then						 		
+													  	print(item.name,x+8,yy)
+													  	
+													  	if(can_make(i)) then
+														  	spr(9,x+m.width-10,yy-2)
+														  end
+													 	else
+													 	 print('--',x+8,yy)
+													 	end															
+														end
+													end
+												end,
+	item_action=function (m) 
+														local item=m.items[m.crsr_pos]
+														
+														if item and can_make(m.crsr_pos) then
+														 add_item_to_inv(item.name,1)
+														 
+														 for k,v in pairs(item.ingr) do
+															 remove_item_from_inv(k,v)
+															end
+														end
+													end
 }
+
+recipes={
+	{
+		name='pickaxe',
+		ingr={
+			wood=2,
+			stone=2,
+		}
+	}
+}
+
+function add_recipes()
+	local i=1
+	for recipe in all(recipes) do
+		craft_menu.items[i]=recipe
+		i=i+1
+	end
+end
+
+function can_make(idx)
+	local ingr=recipes[idx].ingr
+	local can=true
+	
+	for k,v in pairs(ingr) do
+		local inv_item=find_inv_item(k)
+		
+		if(inv_item) then
+			if(inv_item.amount<v) then
+				can=false
+			end
+		else
+			can=false
+		end
+	end
+	
+	return can
+end
+
+function find_inv_item(name)
+	for item in all(inventory.items) do
+		if item.name == name then
+			return item
+		end
+	end
+end
 
 function get_offset_pos(x,y)
 	return {player.x-60+x,player.y-60+y}
@@ -224,7 +313,8 @@ function draw_submenu(menu)
 	
 		menu.draw_items(menu)
 		
-		spr(8,x,y+11+(7*(menu.crsr_pos-1)))
+		spr(8,x,y+11)
+		--spr(8,x,y+11+(7*(menu.crsr_pos-1)))
 	end
 end
 
@@ -259,7 +349,7 @@ function update_submenu(menu)
  
  if(menu.is_open) then
  	if(btnp(⬇️)) then
-	  if(menu.crsr_pos<10) then
+	  if(menu.crsr_pos<menu.max_items) then
 	 	 menu.crsr_pos=menu.crsr_pos+1
 	 	end
  	end
@@ -269,6 +359,10 @@ function update_submenu(menu)
 	 	 menu.crsr_pos=menu.crsr_pos-1
 	 	end
 	 end
+	 
+	 if(btnp(🅾️)) then
+	 	menu.item_action(menu)
+	 end
  
  	if(btnp(❎)) then
  		menu.is_closing=true
@@ -277,15 +371,42 @@ function update_submenu(menu)
 end
 
 function add_item_to_inv(name,amount)
-	item=inventory.items[name]
-	
-	if(item) then
-		item.amount=item.amount+amount
-	else
-		inventory.items[name]={
-		 amount=amount
-		}
+	for item in all(inventory.items)  do		
+		if item and item.name==name then
+			item.amount=item.amount+amount
+			return true
+		end
 	end
+	
+	if #inventory.items<inventory.max_items then
+		add(inventory.items,{name=name,amount=amount})
+		return true
+	end
+
+	return false
+end
+
+function remove_item_from_inv(name,amount)
+	local item=find_inv_item(name)
+	
+	item.amount=item.amount-amount
+	
+	if item.amount<=0 then
+		del(inventory.items,item)
+	end
+end
+
+function flatten_items(items)
+	local i=0
+	
+	local is={}
+	
+	for k,v in qsort(pairs(items)) do
+		is[i]={k,v}
+		i=i+1
+	end
+	
+	return is
 end
 -->8
 tiledefs={
@@ -482,10 +603,10 @@ end
 __gfx__
 00000000000000000111111000000000000000007770077700000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000111111001444410000000000000000071100117000b0000000800000007000000000000000000000000000000000000000000000000000000000000
-007007000144441001f5f510000000000000000071000017000bb000000880000007700000000000000000000000000000000000000000000000000000000000
-0007700001f5f51001fddd10000000000000000010000001000bbb00000888000007770000000000000000000000000000000000000000000000000000000000
-0007700001fddd1001188110000000000000000070000007000bbb00000888000007770000000000000000000000000000000000000000000000000000000000
-0070070001188110001cc100000000000000000070000007000bb000000880000007700000000000000000000000000000000000000000000000000000000000
+007007000144441001f5f510000000000000000071000017000bb000000880000007700000000000008008000000000000000000000000000000000000000000
+0007700001f5f51001fddd10000000000000000010000001000bbb00000888000007770000000b00000880000000000000000000000000000000000000000000
+0007700001fddd1001188110000000000000000070000007000bbb00000888000007770000b0b000000880000000000000000000000000000000000000000000
+0070070001188110001cc100000000000000000070000007000bb0000008800000077000000b0000008008000000000000000000000000000000000000000000
 00000000001cc10000111100000000000000000077700777000b0000000800000007000000000000000000000000000000000000000000000000000000000000
 00000000001111000000000000000000000000001110011100000000000000000000000000000000000000000000000000000000000000000000000000000000
 11111111111111111111111155555555444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
