@@ -83,7 +83,11 @@ function draw_player()
 		player.building_counter=0
 	end
 		
- spr(5,tilex*8,tiley*8)
+	if is_valid_crsr_pos() then
+ 	spr(5,tilex*8,tiley*8)
+ else
+ 	spr(12,tilex*8,tiley*8)
+ end
 end
 
 function update_player()
@@ -148,7 +152,7 @@ function update_player()
 		end
 
 		if player.building==0 then	
-			if(btnp(🅾️)) then
+			if btnp(🅾️) and is_valid_crsr_pos() then
 			 punch() 
 			end
 			
@@ -158,7 +162,7 @@ function update_player()
 		
 		 if(btnp(❎)) then toggle_actionbar() end
 		else
-			if btnp(🅾️) and can_build then
+			if btnp(🅾️) and is_valid_crsr_pos() and can_build then
 				if can_make_building(build_menu.crsr_pos) then			
 					local pos=get_tool_grid_pos()
 					local tilex=pos.x
@@ -197,23 +201,31 @@ function toggle_actionbar()
 end
 
 function get_tool_grid_pos()
- ptilex=flr((player.x+4)/8)
-	ptiley=flr((player.y+4)/8)
-	
-	tilex=ptilex
-	tiley=ptiley
+	local px=player.x
+	local py=player.y
+	local ox=0
+	local oy=0
 	
 	if(player.dir=='left') then
-	 tilex=tilex-1
+		ox=-1
+		py+=4
 	elseif(player.dir=='right') then
-		tilex=tilex+1
+		px+=7
+		py+=4
+		ox=1
 	elseif(player.dir=='up') then
-		tiley=tiley-1
+		oy=-1
+		px+=4
 	elseif(player.dir=='down') then
-		tiley=tiley+1
+		px+=4
+		py+=7
+		oy=1
 	end
 	
-	return {x=tilex,y=tiley}
+	ptilex=flr((px)/8)+ox
+	ptiley=flr((py)/8)+oy
+	
+	return {x=ptilex,y=ptiley}
 end
 
 function punch()
@@ -252,6 +264,29 @@ end
 function set_building(sprite)
 	player.building=sprite
 end
+
+function is_valid_crsr_pos()
+	local pos=get_tool_grid_pos()
+	local x=pos.x
+	local y=pos.y
+	
+	local ptx=flr(player.x/8)
+	local pty=flr(player.y/8)
+	
+	if ptx==x and pty==y then
+		return false
+	end
+	
+	local tile=mget(x,y)
+	local tiledef=tiledefs[tile]
+	
+	if tile!=0 and (not tiledef or not tiledef.interactable) then
+		return false
+	end
+	
+	return true
+end
+
 -->8
 inventory={
 	name='items',
@@ -679,13 +714,15 @@ tiledefs={
 		durability=5,
 		tile=32,
 		weakness='chop',
+		interactable=true
 	},
 	[33]={
 		name='stone',
 		drop='stone',
 		durability=5,
 		tile=33,
-		weakness='mine'
+		weakness='mine',
+		interactable=true,
 	},
 	[21]={
 		name='door',
@@ -698,7 +735,8 @@ tiledefs={
 		buildable=true,
 		ingr={
 			wood=10
-		}
+		},
+		interactable=true,
 	},
 	[22]={
 		name='door_opened',
@@ -710,7 +748,28 @@ tiledefs={
 									end,
 		ingr={
 			wood=10
-		}
+		},
+		interactable=true,
+	},
+	[18]={
+		name='stn wall',
+		durability=10,
+		tile=18,
+		buildable=true,
+		ingr={
+			stone=10
+		},
+		interactable=true,
+	},
+	[20]={
+		name='wd floor',
+		durability=2,
+		tile=20,
+		buildable=true,
+		ingr={
+			wood=3
+		},
+		interactable=true
 	}
 }
 -->8
@@ -916,6 +975,28 @@ function mcollide(obj)
   
  return a or b or c or d
 end
+
+function mcollide_pos(obj)
+	local x1=obj.x/8
+ local y1=obj.y/8
+ local x2=(obj.x+7)/8
+ local y2=(obj.y+7)/8
+ 
+ local a=fget(mget(x1,y1),0)
+ local b=fget(mget(x1,y2),0)
+ local c=fget(mget(x2,y1),0)
+ local d=fget(mget(x2,y2),0)
+  
+ if a then
+ 	return {x1,x2}
+ elseif b then
+ 	return {x1,y2}
+ elseif c then
+ 	return {x2,y1}
+ elseif d then
+ 	return {x2,y2}
+ end
+end
 -->8
 equipment={
 	x=4,
@@ -1049,14 +1130,14 @@ function update_clock()
 	end
 end
 __gfx__
-00000000000000000111111000000000000000007770077700000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000111111001444410000000000000000071100117000b0000000800000007000000000000000000000000000000000000000000000000000000000000
-007007000144441001f5f510000000000000000071000017000bb000000880000007700000000000008008000040440000000000000000000000000000000000
-0007700001f5f51001fddd10000000000000000010000001000bbb00000888000007770000000b00000880000040040000000000000000000000000000000000
-0007700001fddd1001188110000000000000000070000007000bbb00000888000007770000b0b000000880000040400000000000000000000000000000000000
-0070070001188110001cc100000000000000000070000007000bb0000008800000077000000b0000008008000040440000000000000000000000000000000000
-00000000001cc10000111100000000000000000077700777000b0000000800000007000000000000000000000000000000000000000000000000000000000000
-00000000001111000000000000000000000000001110011100000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000111111000000000000000007770077700000000000000000000000000000000000000000000000088800888000000000000000000000000
+000000000111111001444410000000000000000071100117000b0000000800000007000000000000000000000000000081100118000000000000000000000000
+007007000144441001f5f510000000000000000071000017000bb000000880000007700000000000008008000040440081000018000000000000000000000000
+0007700001f5f51001fddd10000000000000000010000001000bbb00000888000007770000000b00000880000040040010000001000000000000000000000000
+0007700001fddd1001188110000000000000000070000007000bbb00000888000007770000b0b000000880000040400080000008000000000000000000000000
+0070070001188110001cc100000000000000000070000007000bb0000008800000077000000b0000008008000040440080000008000000000000000000000000
+00000000001cc10000111100000000000000000077700777000b0000000800000007000000000000000000000000000088800888000000000000000000000000
+00000000001111000000000000000000000000001110011100000000000000000000000000000000000000000000000011100111000000000000000000000000
 11111111111111111111111166666666494949491111111111100001154545331111111100111111111111003355455115545533333333333355455100000000
 18788881144444411777177166566666949494941444444114100001155453335555555501555555555555103335545115455333333333333335545100000000
 17777771114411111777177166666666494949491444444114100001154553335454545415554545545455515335455115545335533553353335455100000000
