@@ -7,6 +7,7 @@ function _init()
 	add_recipes()
 	add_buildings()
 	equipment.sprite=equipment_defs.pickaxe.sprite
+	add_item_to_inv('hoe',999)
 	add_item_to_inv('seeds',999)
 	add_item_to_inv('wtrcan',999)
 	add_item_to_inv('pickaxe',999)
@@ -239,15 +240,20 @@ function punch()
 	 
  local tile=mget(tilex,tiley)
  local is_structure=fget(tile,1)
+
+	local equipdef=get_equipment_by_sprite(equipment.sprite)
+	if equipdef.action then
+		equipdef.action(tilex,tiley)
+	end
  
  if(tile!=0) then
+ 	harvest_plant(tilex,tiley)
+ 	
  	local tiledef=tiledefs[tile]
 
 		if not tiledef then return end
 
-		local equipdef=get_equipment_by_sprite(equipment.sprite)
-
- 	if is_structure or equipdef.action then
+ 	if is_structure then
 	 	if player.punch_timer>0 then
 	 		local power=1
 	 	
@@ -257,13 +263,9 @@ function punch()
 	 			tiledef.action(tilex,tiley)
 	 		end
 	 		
-	 		if equipdef.action then
-	 			equipdef.action(tilex,tiley)
-	 		end
-	 		
 	 		player.punch_timer=player.punch_timer+1
 			end
- 	else
+ 	elseif tiledef.durability then
 	 	if(not tiledef) then return end
 	 
 	 	punch_obj(tilex*8,tiley*8,tiledef)
@@ -783,13 +785,11 @@ tiledefs={
 	},
 	[34]={
 		name='dirt',
-		durability=5,
 		tile=34,
 		interactable=true
 	},
 	[35]={
 		name='dirt_watered',
-		durability=5,
 		tile=35,
 		interactable=true
 	}
@@ -898,7 +898,7 @@ function draw_tracked_objs()
 	for o in all(tracked_objs) do
 		rectfill(o.x-2,o.y-1,o.x+9,o.y+2,1)
 		
-		hwidth=-2+(9*(o.health/o.durability))
+		hwidth=(9*(o.health/o.durability))
 		
 		rectfill(o.x-1,o.y,o.x+hwidth,o.y+1,8)
 	end
@@ -976,7 +976,7 @@ function punch_obj(x,y,tiledef)
 			for k,v in pairs(tiledef.ingr) do
 				add_item_to_inv(k,v)
 			end
-		else
+		elseif tiledef.drop then
 			add_item_to_inv(tiledef.drop,1)
 		end
 		mset(tilex,tiley,0)
@@ -1091,7 +1091,16 @@ equipment_defs={
 	},
 	hoe={
 		sprite=51,
-		power=2
+		power=2,
+		action=function (tilex,tiley)
+										local t=mget(tilex,tiley)
+										
+										if t==0 then
+											mset(tilex,tiley,34)
+										elseif t==34 or t==35 then
+											mset(tilex,tiley,0)
+										end
+									end
 	},
 	axe={
 		sprite=52,
@@ -1223,14 +1232,18 @@ function draw_planting()
 	end
 end
 
-function can_create_plant(tilex,tiley)
+function find_plant(tilex,tiley)
 	for plant in all(planting.plants) do
 		if plant.tilex==tilex and plant.tiley==tiley then
-			return false
+			return plant
 		end
 	end
+end
+
+function can_create_plant(tilex,tiley)
+	local p=find_plant(tilex,tiley)
 	
-	return true
+	return not p
 end
 
 function create_plant(name,tilex,tiley)
@@ -1246,7 +1259,14 @@ function create_plant(name,tilex,tiley)
 end
 
 function harvest_plant(tilex,tiley)
-
+	local p=find_plant(tilex,tiley)
+	local can_harvest=p and p.sprite==growthdefs.plant
+	
+	if can_harvest then
+		add_item_to_inv(p.name,2)
+		
+		del(planting.plants,p)
+	end
 end
 __gfx__
 00000000000000000111111000000000000000007770077700000000000000000000000000000000000000000000000088800888000000000000000000000000
